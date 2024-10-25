@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS Bojonegoro dengan Mapbox</title>
+
+    <!-- Link Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+        }
+
+        #map {
+            height: calc(100vh - 56px);
+            width: calc(100% - 250px);
+            position: relative;
+            margin-left: 250px;
+        }
+
+        #sidebar {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 56px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border-right: 1px solid #ccc;
+            padding: 10px;
+            z-index: 10;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .folder-header {
+            cursor: pointer;
+            padding: 5px;
+            color: white;
+            border: 1px solid;
+            border-radius: 4px;
+        }
+
+        .folder-content {
+            display: none; /* Tersembunyi secara default */
+            padding-left: 15px;
+        }
+
+        .list-group-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .list-group-item input {
+            margin-right: 10px;
+        }
+
+        .list-group-item:hover {
+            background-color: #f1f1f1; /* Warna latar belakang saat hover */
+        }
+
+        .folder-content .list-group-item {
+            padding: 2px 5px; /* Mengurangi padding */
+            font-size: 12px; /* Mengurangi ukuran font */
+            margin: 2px 0; /* Mengurangi margin antar item */
+        }
+
+        /* Mengubah gaya label agar lebih ramping */
+        .folder-content .list-group-item label {
+            margin-left: 5px; /* Mengurangi margin label */
+            font-size: 12px; /* Mengurangi ukuran font label */
+        }
+
+        /* Warna header folder */
+        .header-dataset1 {
+            background-color: #8ab4f8; /* Biru lembut */
+        }
+
+        .header-dataset2 {
+            background-color: #a4d65e; /* Hijau lembut */
+        }
+
+        .header-dataset3 {
+            background-color: #f26b8a; /* Merah lembut */
+        }
+
+        .header-dataset4 {
+            background-color: #f9e74b; /* Kuning lembut */
+        }
+
+        .header-dataset5 {
+            background-color: #c0a2e4; /* Ungu lembut */
+        }
+
+        .header-dataset6 {
+            background-color: #d0d0d0; /* Abu-abu lembut */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header Navigasi -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">WebGIS Bojonegoro</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Beranda <span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Tentang</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Kontak</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Sidebar untuk menampilkan layer -->
+    <div id="sidebar">
+        <h5>Layer</h5>
+        <div id="layerList">
+        </div>
+    </div>
+
+    <!-- Div untuk Peta -->
+    <div id="map"></div>
+
+    <!-- Link JavaScript untuk Mapbox dan Bootstrap -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
