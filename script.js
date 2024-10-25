@@ -23,6 +23,43 @@ const map = new mapboxgl.Map({
     zoom: 10
 });
 
+// Fungsi untuk mengubah warna fitur yang diklik
+function changeFeatureColor(layerId, featureId, newColor) {
+    const filter = ['==', '$id', featureId]; // Filter berdasarkan ID fitur
+    map.setPaintProperty(layerId, 'line-color', [
+        'case',
+        filter, newColor, // Jika fitur cocok, ubah warnanya menjadi 'newColor'
+        map.getPaintProperty(layerId, 'line-color') // Jika tidak, gunakan warna asli
+    ]);
+}
+
+// Fungsi untuk menampilkan popup
+function showPopup(coordinates, properties, geometry, layerId, featureId) {
+    let content;
+
+    // Cek tipe fitur
+    if (geometry.type === 'LineString') {
+        // Jika fitur adalah LineString, tampilkan nama dan keterangan
+        content = `
+            <h6>${properties.Nama}</h6>
+            <p>Keterangan: ${properties.Keterangan}<br/>Panjang: ${properties.Panjang} m</p>
+        `;
+    } else if (geometry.type === 'Point') {
+        // Jika fitur adalah Point, tampilkan hanya nama
+        content = `<h6>${properties.Nama}</h6>`;
+    }
+
+    // Buat popup baru
+    new mapboxgl.Popup()
+        .setLngLat(coordinates)
+        .setHTML(content)
+        .addTo(map);
+
+    // Ubah warna fitur yang diklik
+    const newColor = '#FF0000'; // Warna baru yang diinginkan
+    changeFeatureColor(layerId, featureId, newColor);
+}
+
 // Fungsi untuk menambahkan dataset ke peta
 function addDatasetToMap(datasetId, layerGroupId, index) {
     const datasetUrl = `https://api.mapbox.com/datasets/v1/${YOUR_USERNAME}/${datasetId}/features?access_token=${YOUR_TOKEN_ID}`;
@@ -35,13 +72,26 @@ function addDatasetToMap(datasetId, layerGroupId, index) {
             return response.json();
         })
         .then(data => {
+            const featuresByName = {};
+
+            // Mengelompokkan fitur berdasarkan properti "Nama"
+            data.features.forEach(feature => {
+                const name = feature.properties.Nama; // Pastikan ada properti 'Nama'
+
+                if (!featuresByName[name]) {
+                    featuresByName[name] = [];
+                }
+                featuresByName[name].push(feature);
+            });
+
+            // Membuat folder layer untuk dataset
             const layerGroup = document.createElement('div');
             layerGroup.className = 'layer-item';
 
             // Membuat header folder untuk kategori
             const folderHeader = document.createElement('div');
             folderHeader.className = `folder-header header-dataset${index + 1}`; // Ganti warna sesuai ID
-            folderHeader.innerHTML = `Layer ${layerGroupId} <i class="fas fa-caret-down"></i>`;
+            folderHeader.innerHTML = `${layerGroupId} <i class="fas fa-caret-down"></i>`;
 
             // Menangani klik pada header untuk fold/unfold
             folderHeader.addEventListener('click', function () {
@@ -56,20 +106,21 @@ function addDatasetToMap(datasetId, layerGroupId, index) {
             folderContent.className = 'folder-content';
             folderContent.style.display = 'none'; // Tersembunyi secara default
 
-            data.features.forEach((feature, index) => {
-                const name = feature.properties.Nama; // Pastikan ada properti 'name'
-                const layerId = `${layerGroupId}-layer-${index}`; // Layer ID unik
-
-                // Menentukan tipe layer berdasarkan geometri
-                let geojsonData = {
+            Object.keys(featuresByName).forEach((name, idx) => {
+                const features = featuresByName[name]; // Gabungan fitur yang memiliki properti 'Nama' sama
+                const layerId = `${layerGroupId}-layer-${idx}`; // Layer ID unik
+                const geojsonData = {
                     type: 'FeatureCollection',
-                    features: [feature]
+                    features: features
                 };
 
                 // Menggunakan warna berdasarkan indeks dataset
-                const layerColor = colors[index % colors.length]; // Memilih warna berdasarkan indeks
+                const layerColor = colors[idx % colors.length];
 
-                if (feature.geometry.type === 'Point') {
+                // Menentukan tipe layer berdasarkan geometri fitur pertama
+                const geometryType = features[0].geometry.type;
+
+                if (geometryType === 'Point') {
                     map.addLayer({
                         id: layerId,
                         type: 'circle',
@@ -82,24 +133,35 @@ function addDatasetToMap(datasetId, layerGroupId, index) {
                             'circle-radius': 6
                         }
                     });
-                } else if (feature.geometry.type === 'LineString') {
+                } else if (geometryType === 'LineString') {
                     map.addLayer({
                         id: layerId,
                         type: 'line',
-						minzoom: 18,
+                        minzoom: 17,
                         source: {
                             type: 'geojson',
                             data: geojsonData
                         },
+                        'layout': {
+                            'line-cap': 'round',  // Atur bentuk ujung garis
+                            'line-join': 'round'  // Mengatur bentuk sambungan garis
+                        },
                         paint: {
-                            'line-color': layerColor,
-                            'line-width': 2
+                            'line-color': [
+                                'match', ['get', 'Keterangan'],
+                                'Tidak Berpagar', 'red',
+                                'Dinding Bangunan Lain', 'yellow',
+                                'Pagar', 'green',
+                                layerColor
+                            ],
+                            'line-width': 5
                         }
                     });
-                } else if (feature.geometry.type === 'Polygon') {
+                } else if (geometryType === 'Polygon') {
                     map.addLayer({
                         id: layerId,
                         type: 'fill',
+                        minzoom: 17,
                         source: {
                             type: 'geojson',
                             data: geojsonData
@@ -110,6 +172,15 @@ function addDatasetToMap(datasetId, layerGroupId, index) {
                         }
                     });
                 }
+
+                // Tambahkan event listener untuk klik pada fitur
+                map.on('click', layerId, function(e) {
+                    const coordinates = e.lngLat;
+                    const properties = e.features[0].properties;
+                    const geometry = e.features[0].geometry;
+                    const featureId = e.features[0].id; // Ambil ID fitur
+                    showPopup(coordinates, properties, geometry, layerId, featureId); // Tambahkan ID fitur ke fungsi popup
+                });
 
                 // Populasi nested list dengan nama
                 const listItem = document.createElement('div');
@@ -124,9 +195,9 @@ function addDatasetToMap(datasetId, layerGroupId, index) {
 
                 // Menangani klik pada label untuk melakukan zoom ke titik
                 listItem.querySelector('label').addEventListener('click', (event) => {
-                    event.preventDefault(); // Mencegah tindakan default
-                    event.stopPropagation(); // Mencegah event bubbling
-                    flyToFeature(feature); // Memanggil fungsi untuk fly to feature
+                    event.preventDefault();
+                    event.stopPropagation();
+                    flyToFeature(features[0]); // Fly to the first feature in the group
                 });
 
                 folderContent.appendChild(listItem); // Tambahkan item ke konten folder
@@ -146,21 +217,21 @@ function flyToFeature(feature) {
         coordinates = feature.geometry.coordinates;
         map.flyTo({
             center: coordinates,
-            zoom: 18, // Ubah zoom untuk Point
-            essential: true // Agar animasi zoom tidak diabaikan
+            zoom: 18,
+            essential: true
         });
     } else if (feature.geometry.type === 'LineString') {
         coordinates = getLineMidpoint(feature.geometry.coordinates);
         map.flyTo({
             center: coordinates,
-            zoom: 18, // Ubah zoom untuk LineString
+            zoom: 18,
             essential: true
         });
     } else if (feature.geometry.type === 'Polygon') {
         coordinates = getPolygonCentroid(feature.geometry.coordinates[0]);
         map.flyTo({
             center: coordinates,
-            zoom: 18, // Ubah zoom untuk Polygon
+            zoom: 18,
             essential: true
         });
     }
